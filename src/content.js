@@ -1,3 +1,4 @@
+import { createRedirectUri } from './lib/create_role_list_item.js'
 function needsInvertForeColorByBack(color) {
   let r, g, b;
   const md = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
@@ -66,22 +67,27 @@ function setupMessageListener(metaASE) {
     if (action === 'loadInfo') {
       return loadInfo(cb);
     } else if (action === 'switch') {
-      let actionHost = metaASE.getAttribute('content');
-      const { actionSubdomain } = data;
-      if (actionSubdomain && actionHost === 'signin.aws.amazon.com') {
-        actionHost = actionSubdomain + '.' + actionHost;
-      }
-      const form = document.getElementById('AESR_form');
-      form.setAttribute('action', `https://${actionHost}/switchrole`);
-      form.account.value = data.account;
-      form.color.value = data.color;
-      form.roleName.value = data.rolename;
-      form.displayName.value = data.displayname;
-      form.redirect_uri.value = data.redirecturi;
-      form.submit();
+      switchRole(metaASE, data)
       return false;
     }
   })
+}
+
+function switchRole(metaASE, data) {
+  console.log(JSON.stringify(data))
+  let actionHost = metaASE.getAttribute('content');
+  const { actionSubdomain } = data;
+  if (actionSubdomain && actionHost === 'signin.aws.amazon.com') {
+    actionHost = actionSubdomain + '.' + actionHost;
+  }
+  const form = document.getElementById('AESR_form');
+  form.setAttribute('action', `https://${actionHost}/switchrole`);
+  form.account.value = data.account;
+  form.color.value = data.color;
+  form.roleName.value = data.rolename;
+  form.displayName.value = data.displayname;
+  form.redirect_uri.value = data.redirecturi;
+  form.submit();
 }
 
 if (document.body) {
@@ -90,5 +96,47 @@ if (document.body) {
     adjustDisplayNameColor();
     appendAESR();
     setupMessageListener(metaASE);
+
+    (async () => {
+      const afterAutoSwitchUrl = await new Promise(r => {
+        chrome.storage.sync.get(['after-auto-switch-url'], (d) => {
+          r(d['after-auto-switch-url'])
+        })
+      })
+
+      if (afterAutoSwitchUrl) {
+        chrome.storage.sync.set({'after-auto-switch-url': null })
+        window.location.href = afterAutoSwitchUrl
+      }
+
+      const autoSwitchData = await new Promise(r => {
+        chrome.storage.sync.get(['auto-switch-data'], (d) => {
+          r(d['auto-switch-data'])
+        })
+      })
+
+      if (autoSwitchData) {
+        chrome.storage.sync.set({'auto-switch-data': null })
+        const { profile ,role_name: rolename, aws_account_id: account ,color, afterSwitchUrl } = autoSwitchData
+        const displayname =  profile + '  |  ' + account
+        loadInfo((info) => {
+          if (info.userAccountNumber.replace(/-/g, '') == account && info.roleDisplayNameUser == displayname) {
+            return
+          }
+
+          chrome.storage.sync.set({'after-auto-switch-url': afterSwitchUrl })
+
+          switchRole(metaASE, {
+            profile,
+            rolename,
+            account,
+            color: color || "aaaaaa",
+            redirecturi: createRedirectUri(window.location.href, 'ap-northeast-1', 'ap-northeast-1'),
+            displayname,
+            search: rolename,
+          });
+        });
+      }
+    })();
   }
 }
