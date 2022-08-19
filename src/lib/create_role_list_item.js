@@ -48,7 +48,7 @@ export function createRoleListItem(document, item, url, region, { hidesAccountId
   return li
 }
 
-function createRedirectUri(currentUrl, curRegion, destRegion) {
+export function createRedirectUri(currentUrl, curRegion, destRegion) {
   let redirectUri = currentUrl;
   if (curRegion && destRegion && curRegion !== destRegion) {
     redirectUri = redirectUri.replace('region=' + curRegion, 'region=' + destRegion);

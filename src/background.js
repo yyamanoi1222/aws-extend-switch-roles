@@ -1,9 +1,10 @@
 import { DataProfilesSplitter } from './lib/data_profiles_splitter.js'
 import { loadAwsConfig } from './lib/load_aws_config.js'
 import { LZString } from './lib/lz-string.min.js'
-import { LocalStorageRepository, SyncStorageRepository } from './lib/storage_repository.js'
+import { StorageRepository, LocalStorageRepository, SyncStorageRepository } from './lib/storage_repository.js'
 
 const syncStorageRepo = new SyncStorageRepository(chrome || browser)
+const storageRepo = new StorageRepository(chrome || browser, 'sync')
 
 function saveAwsConfig(data, callback, storageRepo) {
   const rawstr = data;
@@ -108,3 +109,42 @@ chrome.runtime.onMessageExternal.addListener(function (message, sender, sendResp
     }
   })
 })
+
+
+let beforeUrl = null
+let profiles = null
+
+chrome.tabs.onUpdated.addListener(
+  async function(tabId, changeInfo, tab) {
+    const autoSwitchData = await new Promise(r => {
+      chrome.storage.sync.get(['auto-switch-data'], (d) => {
+        r(d['auto-switch-data'])
+      })
+    })
+
+    if (autoSwitchData) {
+      return
+    }
+
+    if (!profiles) {
+      const data = await storageRepo.get(['profiles', 'profiles_1', 'profiles_2', 'profiles_3', 'profiles_4'])
+      profiles = data.profiles
+    }
+
+    if (changeInfo.url) {
+      if (beforeUrl != changeInfo.url) {
+        const found = profiles.find(profile => {
+          if (!profile.match_url) {
+            return false
+          }
+          return new RegExp(profile.match_url).exec(changeInfo.url)
+        })
+
+        if (found) {
+          chrome.storage.sync.set({ 'auto-switch-data': { ...found, afterSwitchUrl: changeInfo.url }})
+        }
+      }
+      beforeUrl = changeInfo.url
+    }
+  }
+)
