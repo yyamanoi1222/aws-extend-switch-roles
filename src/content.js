@@ -74,7 +74,6 @@ function setupMessageListener(metaASE) {
 }
 
 function switchRole(metaASE, data) {
-  console.log(JSON.stringify(data))
   let actionHost = metaASE.getAttribute('content');
   const { actionSubdomain } = data;
   if (actionSubdomain && actionHost === 'signin.aws.amazon.com') {
@@ -120,7 +119,7 @@ if (document.body) {
         const { profile ,role_name: rolename, aws_account_id: account ,color, afterSwitchUrl } = autoSwitchData
         const displayname =  profile + '  |  ' + account
         loadInfo((info) => {
-          if (info.userAccountNumber.replace(/-/g, '') == account && info.roleDisplayNameUser == displayname) {
+          if (info.userAccountNumber.replace(/-/g, '') == account && info.roleDisplayNameUser == rolename) {
             return
           }
 
