@@ -131,7 +131,9 @@ chrome.tabs.onUpdated.addListener(
       profiles = data.profiles
     }
 
-    if (changeInfo.url) {
+    const consoleUrl = "https:\/\/.*\.console\.aws\.amazon\.com\/.*"
+
+    if (changeInfo.url && RegExp(consoleUrl).exec(changeInfo.url)) {
       if (beforeUrl != changeInfo.url) {
         const found = profiles.find(profile => {
           if (!profile.match_url) {
